@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd  http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+    <!-- BEANS -->
+    <bean
+        class="org.springframework.boot.context.embedded.ServletRegistrationBean" id="camelServlet">
+        <property name="name" value="CamelServlet"/>
+        <property name="loadOnStartup" value="1"/>
+        <property name="servlet">
+            <bean
+                class="org.apache.camel.component.servlet.CamelHttpTransportServlet" id="camelServlet"/>
+        </property>
+        <property name="urlMappings" value="/*"/>
+    </bean>
+    <bean class="org.apache.camel.component.gson.GsonDataFormat" id="unmarshalGson">
+        <property name="unmarshalType" value="com.multiva.model.request.pojo.DatosBasicosRequest"/>
+    </bean>
+    <bean class="org.apache.camel.component.gson.GsonDataFormat" id="marshalGson">
+        <property name="unmarshalType" value="com.multiva.model.response.pojo.DatosBasicosRespose"/>
+    </bean>
+    <bean class="com.multiva.beans.RequestFactory" id="requestFactory"/>
+    <!-- PROCESSOR -->
+    <bean class="com.multiva.processors.DatosBasicosResponseProcessor" id="responseRestService"/>
+    <bean class="com.multiva.processors.DatosBasicosT24RequestProcessor" id="requestSoapT24Service"/>
+    <!-- SERVICIOS -->
+    <cxf:cxfEndpoint
+        address="{{multiva.wsdl.address}}"
+        id="consultaSEndpoint"
+        serviceClass="com.multiva.ws.client.T24WebServicesImpl" wsdlURL="{{multiva.wsdl.address}}?wsdl"/>
+    <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+        <propertyPlaceholder id="_placeholderDatosBasicos1" location="classpath:application.properties"/>
+        <dataFormats>
+            <soapjaxb contextPath="com.multiva.ws.client" id="soapFormat"/>
+        </dataFormats>
+        <restConfiguration apiContextPath="{{swagger.api.context.path.api}}" component="servlet"
+            contextPath="{{swagger.api.context.path}}" enableCORS="true" host="{{swagger.api.host}}">
+            <camel:apiProperty key="api.title" value="{{swagger.api.title}}"/>
+            <camel:apiProperty key="api.version" value="{{swagger.api.version}}"/>
+            <camel:apiProperty key="cors" value="true"/>
+        </restConfiguration>
+        <rest path="{{multiva.url.rest.main}}">
+            <post consumes="application/json"
+                outType="com.multiva.model.response.pojo.DatosBasicosRespose"
+                produces="application/json"
+                type="com.multiva.model.request.pojo.DatosBasicosRequest" uri="{{multiva.url.rest.application}}">
+                <to uri="direct:datosBasicosCliente"/>
+            </post>
+        </rest>
+        <route id="ruta-1">
+            <from id="from-1" uri="direct:datosBasicosCliente"/>
+            <unmarshal id="unmarshal-1" ref="unmarshalGson"/>
+            <log id="log-1" message="{{multiva.logger.uno}} ${body}"/>
+            <bean id="bean-1" method="saveBodyOnProps" ref="requestFactory"/>
+            <process id="processor-1" ref="requestSoapT24Service"/>
+            <log id="log-2" message="{{multiva.logger.dos}} ${body}"/>
+            <marshal id="marshal-1" ref="soapFormat"/>
+            <log id="log-3" message="{{multiva.logger.tres}} ${body}"/>
+            <to id="to-1" uri="cxf:bean:consultaSEndpoint?dataFormat=MESSAGE"/>
+            <unmarshal id="unmarshal-2" ref="soapFormat"/>
+            <log id="log-4" message="{{multiva.logger.cuatro}} ${body}"/>
+            <process id="processor-2" ref="responseRestService"/>
+            <marshal id="marshal-2" ref="marshalGson"/>
+            <log id="log-5" message="{{multiva.logger.cinco}} ${body}"/>
+        </route>
+    </camelContext>
+</beans>
