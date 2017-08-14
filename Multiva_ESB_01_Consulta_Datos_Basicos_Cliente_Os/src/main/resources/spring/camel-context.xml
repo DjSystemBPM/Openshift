@@ -4,8 +4,7 @@
     xmlns:cxf="http://camel.apache.org/schema/cxf"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd  http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd">
     <!-- BEANS -->
-    <bean
-        class="org.springframework.boot.context.embedded.ServletRegistrationBean" id="camelServlet">
+    <bean class="org.springframework.boot.context.embedded.ServletRegistrationBean" id="camelServlet">
         <property name="name" value="CamelServlet"/>
         <property name="loadOnStartup" value="1"/>
         <property name="servlet">
@@ -25,8 +24,7 @@
     <bean class="com.multiva.processors.DatosBasicosResponseProcessor" id="responseRestService"/>
     <bean class="com.multiva.processors.DatosBasicosT24RequestProcessor" id="requestSoapT24Service"/>
     <!-- SERVICIOS -->
-    <cxf:cxfEndpoint
-        address="{{multiva.wsdl.address}}"
+    <cxf:cxfEndpoint address="{{multiva.wsdl.address}}"
         id="consultaSEndpoint"
         serviceClass="com.multiva.ws.client.T24WebServicesImpl" wsdlURL="{{multiva.wsdl.address}}?wsdl"/>
     <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
@@ -34,13 +32,18 @@
         <dataFormats>
             <soapjaxb contextPath="com.multiva.ws.client" id="soapFormat"/>
         </dataFormats>
-        <restConfiguration apiContextPath="{{swagger.api.context.path.api}}" component="servlet"
+        <restConfiguration
+            apiContextPath="{{swagger.api.context.path.api}}"
+            component="servlet"
             contextPath="{{swagger.api.context.path}}" enableCORS="true" host="{{swagger.api.host}}">
             <camel:apiProperty key="api.title" value="{{swagger.api.title}}"/>
             <camel:apiProperty key="api.version" value="{{swagger.api.version}}"/>
             <camel:apiProperty key="cors" value="true"/>
         </restConfiguration>
         <rest path="{{multiva.url.rest.main}}">
+            <get outType="java.lang.String" produces="application/json" uri="/orders/{orderid}">
+                <to uri="direct:orders"/>
+            </get>
             <post consumes="application/json"
                 outType="com.multiva.model.response.pojo.DatosBasicosRespose"
                 produces="application/json"
